@@ -2,29 +2,28 @@ version: 0.2
 
 env:
   variables:
-    IMAGE_NAME: "document-verifier"
-
+    IMAGE_NAME: document-verifier   # optional; used only if ECR_REPO_URI is not provided
 phases:
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
-      - aws --version
+      - echo "Resolving repo and logging in to ECR..."
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - ECR_REPO_URI=${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_NAME}
-      - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-      - COMMIT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
+      - REGION=${AWS_DEFAULT_REGION:-${AWS_REGION}}
+      - if [ -z "${ECR_REPO_URI}" ]; then export ECR_REPO_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}"; fi
+      - aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+      - COMMIT_SHA=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}
+      - echo "ECR_REPO_URI=${ECR_REPO_URI}"
   build:
     commands:
-      - echo Building the Docker image...
-      - docker build -t ${IMAGE_NAME}:${COMMIT_SHA} -f app/Dockerfile app
-      - docker tag ${IMAGE_NAME}:${COMMIT_SHA} ${ECR_REPO_URI}:${COMMIT_SHA}
-      - docker tag ${IMAGE_NAME}:${COMMIT_SHA} ${ECR_REPO_URI}:latest
+      - echo "Building image..."
+      - docker build -t "${ECR_REPO_URI}:${COMMIT_SHA}" -t "${ECR_REPO_URI}:prod" -f app/Dockerfile .
   post_build:
     commands:
-      - echo Pushing the Docker images...
-      - docker push ${ECR_REPO_URI}:${COMMIT_SHA}
-      - docker push ${ECR_REPO_URI}:latest
-      - printf '{"repository":"%s","tag":"%s"}' "${ECR_REPO_URI}" "${COMMIT_SHA}" > imageDetail.json
+      - echo "Pushing images..."
+      - docker push "${ECR_REPO_URI}:${COMMIT_SHA}"
+      - docker push "${ECR_REPO_URI}:prod"
+      - echo "Writing artifact (imageDetail.json) for CodePipeline..."
+      - printf '{"imageUri":"%s"}' "${ECR_REPO_URI}:${COMMIT_SHA}" > imageDetail.json
 artifacts:
   files:
     - imageDetail.json
