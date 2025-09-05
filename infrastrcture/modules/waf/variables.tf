@@ -5,6 +5,7 @@ variable "name_prefix" {
 variable "cloudfront_arn" {
   description = "Full CloudFront distribution ARN (use the exact ARN returned by CloudFront)."
   type        = string
+  default = ""
 }
 
 variable "malicious_ip_cidrs" {

@@ -63,21 +63,26 @@ module "apprunner" {
 }
 
 module "edge" {
-  source     = "./modules/cloudfront"
-  providers  = { aws = aws.us_east_1 }
+  source    = "./modules/cloudfront"
+  providers = { aws = aws.us_east_1 }
+
   name_prefix         = local.name_prefix
   origin_domain_name  = module.apprunner.service_domain_name
   domain_name         = local.domain_name
   acm_certificate_arn = var.cloudfront_acm_certificate_arn
-  waf_web_acl_arn     = module.waf.web_acl_arn
-  tags                = var.tags
+
+  # Attach WAF directly here (optional):
+  waf_web_acl_arn     = try(module.waf.web_acl_arn, "")
+
+  tags = var.tags
 }
 
+# If you still have a module "waf" association input like cloudfront_arn/cloudfront_distribution_id, remove it.
 module "waf" {
-  source             = "./modules/waf"
-  providers          = { aws = aws.us_east_1 }
+  source    = "./modules/waf"
+  providers = { aws = aws.us_east_1 }
+
   name_prefix        = local.name_prefix
-  cloudfront_arn     = module.edge.cloudfront_arn # exact ARN from resource
   malicious_ip_cidrs = var.malicious_ip_cidrs
   tags               = var.tags
 }

@@ -3,17 +3,18 @@ variable "name_prefix" {
 }
 
 variable "origin_domain_name" {
-  description = "App Runner domain (no scheme), e.g., abc.us-east-1.awsapprunner.com"
+  description = "The App Runner service domain (e.g., xyz123.us-east-1.awsapprunner.com)."
   type        = string
 }
 
 variable "domain_name" {
-  description = "Custom domain to serve (e.g., document-verifier-api.practicedevops.site)"
+  description = "Viewer-facing domain (leave empty to use only the CloudFront domain)."
   type        = string
+  default     = ""
 }
 
 variable "acm_certificate_arn" {
-  description = "Existing ACM certificate ARN in us-east-1 for CloudFront"
+  description = "ACM cert in us-east-1 for the viewer domain."
   type        = string
 }
 
@@ -22,8 +23,16 @@ variable "tags" {
   default = {}
 }
 
+# Optional: attach WAF directly to the distribution
 variable "waf_web_acl_arn" {
-  description = "Optional WAFv2 Web ACL ARN to attach to the distribution"
+  description = "Optional WAFv2 Web ACL ARN to attach to the distribution."
   type        = string
   default     = ""
+}
+
+# Optional: headers to forward to App Runner (Host is intentionally not here)
+variable "origin_forward_headers" {
+  description = "Specific viewer headers to forward to the origin (e.g., [\"Authorization\"]). Host is not allowed."
+  type        = list(string)
+  default     = []
 }
