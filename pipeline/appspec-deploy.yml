@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    APP_RUNNER_SERVICE_ARN: "" # Injected by Terraform
+    APP_RUNNER_SERVICE_ARN: "arn:aws:apprunner:us-east-1:769126752719:service/document-verifier-svc/c602caa02fdb48fda1d627de1d860c1f" # Injected by Terraform
     AWS_DEFAULT_REGION: "us-east-1"     # Injected by Terraform
 phases:
   pre_build:
