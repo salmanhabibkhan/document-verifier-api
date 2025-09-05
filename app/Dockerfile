@@ -22,8 +22,8 @@ COPY app /srv/app
 # Ensure Python can import 'app' package
 ENV PYTHONPATH=/srv
 
-EXPOSE 8080
-ENV PORT=8080
+EXPOSE 8000
+ENV PORT=8000
 
 # Point gunicorn to the package module
 CMD ["gunicorn", "-c", "app/gunicorn_conf.py", "app.main:app"]

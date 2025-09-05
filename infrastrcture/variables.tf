@@ -80,7 +80,7 @@ variable "region" {
 variable "tags" {
   description = "Common tags"
   type        = map(string)
-  default     = {
+  default = {
     Project   = "PayNest"
     Service   = "document-verifier"
     ManagedBy = "Terraform"

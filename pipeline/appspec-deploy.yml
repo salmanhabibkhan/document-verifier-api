@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     APP_RUNNER_SERVICE_ARN: "" # Injected by Terraform
-    AWS_DEFAULT_REGION: ""     # Injected by Terraform
+    AWS_DEFAULT_REGION: "us-east-1"     # Injected by Terraform
 phases:
   pre_build:
     commands:
@@ -15,7 +15,7 @@ phases:
   build:
     commands:
       - echo "Updating App Runner service to image ${IMAGE_IDENTIFIER}"
-      - aws apprunner update-service --service-arn "${APP_RUNNER_SERVICE_ARN}" --source-configuration ImageRepository="{ImageRepositoryType=ECR,ImageIdentifier=${IMAGE_IDENTIFIER},ImageConfiguration={Port=8080,RuntimeEnvironmentVariables=[{Name=LOG_LEVEL,Value=INFO}]}}" --auto-deployments-enabled
+      - aws apprunner update-service --service-arn "${APP_RUNNER_SERVICE_ARN}" --source-configuration ImageRepository="{ImageRepositoryType=ECR,ImageIdentifier=${IMAGE_IDENTIFIER},ImageConfiguration={Port=8000,RuntimeEnvironmentVariables=[{Name=LOG_LEVEL,Value=INFO}]}}" --auto-deployments-enabled
   post_build:
     commands:
       - echo "Starting deployment"

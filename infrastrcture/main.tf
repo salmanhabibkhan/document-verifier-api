@@ -6,7 +6,8 @@ locals {
   # Flattened conditional to avoid parsing issues during init
   runtime_env_secrets = var.verification_api_key_secret_arn != "" ? merge({ VERIFICATION_API_KEY = var.verification_api_key_secret_arn }, var.extra_runtime_environment_secrets) : var.extra_runtime_environment_secrets
 
-  runtime_env_vars = merge({ LOG_LEVEL = "INFO" }, var.extra_runtime_environment_variables)
+  # Use lowercase to avoid Uvicorn KeyError if you switch back to hello-app-runner
+  runtime_env_vars = merge({ LOG_LEVEL = "info" }, var.extra_runtime_environment_variables)
 }
 
 data "aws_caller_identity" "current" {}
@@ -48,36 +49,35 @@ module "ecr" {
 }
 
 module "apprunner" {
-  source                        = "./modules/apprunner"
-  name_prefix                   = local.name_prefix
-  ecr_repo_url                  = module.ecr.repository_url
+  source      = "./modules/apprunner"
+  name_prefix = local.name_prefix
+
+  # Bootstrap with a public, simple sample (Nginx on port 80)
+  bootstrap_image_identifier      = "public.ecr.aws/ecs-sample-image/amazon-ecs-sample:latest"
+  bootstrap_image_repository_type = "ECR_PUBLIC"
+  container_port                  = 80
+
   runtime_environment_secrets   = local.runtime_env_secrets
   runtime_environment_variables = local.runtime_env_vars
   tags                          = var.tags
-
-  # Create with a public bootstrap image; pipeline will update image thereafter.
-  bootstrap_image_identifier = "public.ecr.aws/aws-containers/hello-app-runner:latest"
 }
 
 module "edge" {
-  source = "./modules/cloudfront"
-  providers = {
-    aws = aws.us_east_1
-  }
-  name_prefix        = local.name_prefix
-  origin_domain_name = module.apprunner.service_domain_name
-  domain_name        = local.domain_name
+  source     = "./modules/cloudfront"
+  providers  = { aws = aws.us_east_1 }
+  name_prefix         = local.name_prefix
+  origin_domain_name  = module.apprunner.service_domain_name
+  domain_name         = local.domain_name
   acm_certificate_arn = var.cloudfront_acm_certificate_arn
-  tags               = var.tags
+  waf_web_acl_arn     = module.waf.web_acl_arn
+  tags                = var.tags
 }
 
 module "waf" {
-  source = "./modules/waf"
-  providers = {
-    aws = aws.us_east_1
-  }
+  source             = "./modules/waf"
+  providers          = { aws = aws.us_east_1 }
   name_prefix        = local.name_prefix
-  cloudfront_arn     = module.edge.cloudfront_arn
+  cloudfront_arn     = module.edge.cloudfront_arn # exact ARN from resource
   malicious_ip_cidrs = var.malicious_ip_cidrs
   tags               = var.tags
 }

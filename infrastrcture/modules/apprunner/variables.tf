@@ -2,25 +2,34 @@ variable "name_prefix" {
   type = string
 }
 
-variable "ecr_repo_url" {
-  type = string
+variable "bootstrap_image_identifier" {
+  description = "Initial image to start the service; pipeline can update this later."
+  type        = string
+  default     = "public.ecr.aws/ecs-sample-image/amazon-ecs-sample:latest"
 }
 
-variable "bootstrap_image_identifier" {
-  description = "Initial image to create App Runner service. Pipeline will update to ECR."
+variable "bootstrap_image_repository_type" {
+  description = "ECR (private) or ECR_PUBLIC."
   type        = string
+  default     = "ECR_PUBLIC"
 }
 
 variable "runtime_environment_secrets" {
-  description = "Map of ENV var name to Secrets Manager ARN"
+  description = "Map of env var name -> Secrets Manager ARN"
   type        = map(string)
   default     = {}
 }
 
 variable "runtime_environment_variables" {
-  description = "Map of plain ENV vars"
+  description = "Map of plain env vars"
   type        = map(string)
   default     = {}
+}
+
+variable "container_port" {
+  description = "Container listening port for App Runner."
+  type        = number
+  default     = 80
 }
 
 variable "tags" {

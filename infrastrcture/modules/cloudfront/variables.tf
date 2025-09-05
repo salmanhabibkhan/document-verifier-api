@@ -21,3 +21,9 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "waf_web_acl_arn" {
+  description = "Optional WAFv2 Web ACL ARN to attach to the distribution"
+  type        = string
+  default     = ""
+}
