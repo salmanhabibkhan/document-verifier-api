@@ -2,30 +2,16 @@ version: 0.2
 
 env:
   variables:
-    APP_RUNNER_SERVICE_ARN: "arn:aws:apprunner:us-east-1:769126752719:service/document-verifier-svc/c602caa02fdb48fda1d627de1d860c1f"
+    APP_RUNNER_SERVICE_ARN: "arn:aws:apprunner:us-east-1:769126752719:service/document-verifier-svc/9c4f9f1ca23645e88553375415ad189b"   # leave empty to skip
     AWS_DEFAULT_REGION: "us-east-1"
 
 phases:
   pre_build:
     commands:
-      - echo "Preparing deploy"
-      - test -f imageDetail.json && cat imageDetail.json || (echo "imageDetail.json not found" && exit 1)
-      # Extract imageUri without jq (POSIX)
-      - IMAGE_URI=$(sed -n 's/.*"imageUri"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' imageDetail.json)
-      - if [ -z "$IMAGE_URI" ]; then echo "Could not parse imageUri from imageDetail.json"; exit 1; fi
-      - REPOSITORY=${IMAGE_URI%:*}
-      - TAG=${IMAGE_URI##*:}
-      - IMAGE_IDENTIFIER="${REPOSITORY}:${TAG}"
-      - echo "Deploying image ${IMAGE_IDENTIFIER}"
+      - echo "No update needed; App Runner auto-deploys prod tag."
   build:
     commands:
-      # Create source-config.json on one line (avoid heredocs to keep YAML simple)
-      - echo "{\"ImageRepository\":{\"ImageRepositoryType\":\"ECR\",\"ImageIdentifier\":\"${IMAGE_IDENTIFIER}\",\"ImageConfiguration\":{\"Port\":\"8000\"}},\"AutoDeploymentsEnabled\":true}" > source-config.json
-      - aws apprunner update-service --service-arn "${APP_RUNNER_SERVICE_ARN}" --source-configuration file://source-config.json
-  post_build:
-    commands:
-      - echo "Starting deployment"
-      - aws apprunner start-deployment --service-arn "${APP_RUNNER_SERVICE_ARN}"
+      - if [ -n "${APP_RUNNER_SERVICE_ARN}" ]; then aws apprunner start-deployment --service-arn "${APP_RUNNER_SERVICE_ARN}"; else echo "Skipping manual deploy."; fi
 
 artifacts:
   files:

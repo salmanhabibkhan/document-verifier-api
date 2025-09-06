@@ -3,17 +3,13 @@ locals {
   derived_domain_name = "${var.project_name}-api.${var.parent_zone_name}"
   domain_name         = var.custom_domain_name != "" ? var.custom_domain_name : local.derived_domain_name
 
-  # Flattened conditional to avoid parsing issues during init
   runtime_env_secrets = var.verification_api_key_secret_arn != "" ? merge({ VERIFICATION_API_KEY = var.verification_api_key_secret_arn }, var.extra_runtime_environment_secrets) : var.extra_runtime_environment_secrets
-
-  # Use lowercase to avoid Uvicorn KeyError if you switch back to hello-app-runner
-  runtime_env_vars = merge({ LOG_LEVEL = "info" }, var.extra_runtime_environment_variables)
+  runtime_env_vars    = merge({ LOG_LEVEL = "info" }, var.extra_runtime_environment_variables)
 }
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# Artifact bucket for CodePipeline
 resource "aws_s3_bucket" "artifacts" {
   bucket        = "${local.name_prefix}-artifacts-${data.aws_caller_identity.current.account_id}"
   force_destroy = true
@@ -22,21 +18,16 @@ resource "aws_s3_bucket" "artifacts" {
 
 resource "aws_s3_bucket_versioning" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
-  versioning_configuration {
-    status = "Enabled"
-  }
+  versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
   rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
   }
 }
 
-# Route53 Hosted Zone lookup
 data "aws_route53_zone" "parent" {
   name         = var.parent_zone_name
   private_zone = false
@@ -52,10 +43,10 @@ module "apprunner" {
   source      = "./modules/apprunner"
   name_prefix = local.name_prefix
 
-  # Bootstrap with a public, simple sample (Nginx on port 80)
-  bootstrap_image_identifier      = "public.ecr.aws/ecs-sample-image/amazon-ecs-sample:latest"
-  bootstrap_image_repository_type = "ECR_PUBLIC"
-  container_port                  = 80
+  # SWITCH: Use private ECR repo and prod tag, and the app's port 8000
+  bootstrap_image_identifier      = "${module.ecr.repository_url}:prod"
+  bootstrap_image_repository_type = "ECR"
+  container_port                  = 8000
 
   runtime_environment_secrets   = local.runtime_env_secrets
   runtime_environment_variables = local.runtime_env_vars
@@ -70,14 +61,10 @@ module "edge" {
   origin_domain_name  = module.apprunner.service_domain_name
   domain_name         = local.domain_name
   acm_certificate_arn = var.cloudfront_acm_certificate_arn
-
-  # Attach WAF directly here (optional):
   waf_web_acl_arn     = try(module.waf.web_acl_arn, "")
-
-  tags = var.tags
+  tags                = var.tags
 }
 
-# If you still have a module "waf" association input like cloudfront_arn/cloudfront_distribution_id, remove it.
 module "waf" {
   source    = "./modules/waf"
   providers = { aws = aws.us_east_1 }

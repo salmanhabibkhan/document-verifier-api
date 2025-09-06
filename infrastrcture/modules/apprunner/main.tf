@@ -95,11 +95,13 @@ resource "aws_apprunner_service" "this" {
   service_name = "${var.name_prefix}-svc"
 
   source_configuration {
+    # Enable auto-deploys when using ECR
     auto_deployments_enabled = var.bootstrap_image_repository_type == "ECR"
 
     image_repository {
       image_identifier      = var.bootstrap_image_identifier
       image_repository_type = var.bootstrap_image_repository_type
+
       image_configuration {
         port = tostring(var.container_port)
 
@@ -122,14 +124,13 @@ resource "aws_apprunner_service" "this" {
     }
   }
 
-  # Make health check explicit and tolerant for the sample image
+  # Use TCP health check so your app doesn't need to serve "/" with 200
   health_check_configuration {
-    protocol             = "HTTP"
-    path                 = "/"
-    interval             = 10
-    timeout              = 5
-    healthy_threshold    = 1
-    unhealthy_threshold  = 5
+    protocol            = "TCP"
+    interval            = 10
+    timeout             = 5
+    healthy_threshold   = 1
+    unhealthy_threshold = 5
   }
 
   instance_configuration {
@@ -141,14 +142,6 @@ resource "aws_apprunner_service" "this" {
   auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.this.arn
 
   tags = var.tags
-
-  lifecycle {
-    ignore_changes = [
-      source_configuration[0].image_repository[0].image_identifier,
-      source_configuration[0].image_repository[0].image_repository_type,
-      source_configuration[0].auto_deployments_enabled,
-    ]
-  }
 }
 
 output "service_url" {
