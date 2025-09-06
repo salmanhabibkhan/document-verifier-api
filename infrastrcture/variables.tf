@@ -86,3 +86,8 @@ variable "tags" {
     ManagedBy = "Terraform"
   }
 }
+
+variable "ecr_repository_name" {
+  description = "Name of the existing (manually created) ECR repository, e.g., document-verifier"
+  type        = string
+}

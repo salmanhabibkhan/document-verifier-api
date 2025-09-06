@@ -49,16 +49,13 @@ data "aws_iam_policy_document" "apprunner_policy" {
 
   statement {
     effect = "Allow"
-    actions = [
-      "secretsmanager:GetSecretValue",
-      "secretsmanager:DescribeSecret"
-    ]
+    actions = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
     resources = length(var.runtime_environment_secrets) > 0 ? values(var.runtime_environment_secrets) : ["arn:aws:secretsmanager:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:secret:*"]
   }
 
   statement {
     effect = "Allow"
-    actions = ["kms:Decrypt"]
+    actions   = ["kms:Decrypt"]
     resources = ["*"]
     condition {
       test     = "StringEquals"
@@ -95,16 +92,13 @@ resource "aws_apprunner_service" "this" {
   service_name = "${var.name_prefix}-svc"
 
   source_configuration {
-    # Enable auto-deploys when using ECR
     auto_deployments_enabled = var.bootstrap_image_repository_type == "ECR"
 
     image_repository {
       image_identifier      = var.bootstrap_image_identifier
       image_repository_type = var.bootstrap_image_repository_type
-
       image_configuration {
         port = tostring(var.container_port)
-
         runtime_environment_variables = merge(
           var.runtime_environment_variables,
           {
@@ -124,7 +118,6 @@ resource "aws_apprunner_service" "this" {
     }
   }
 
-  # Use TCP health check so your app doesn't need to serve "/" with 200
   health_check_configuration {
     protocol            = "TCP"
     interval            = 10
