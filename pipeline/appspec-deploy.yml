@@ -8,10 +8,15 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "No update needed; App Runner auto-deploys prod tag."
+      - echo "Deploy stage is optional; App Runner auto-deploys prod tag."
+      - if [ -z "${APP_RUNNER_SERVICE_ARN:-}" ]; then echo "APP_RUNNER_SERVICE_ARN not set; skipping."; exit 0; fi
+      - STATUS=$(aws apprunner describe-service --service-arn "${APP_RUNNER_SERVICE_ARN}" --query 'Service.Status' --output text || echo "UNKNOWN")
+      - echo "App Runner service status: ${STATUS}"
   build:
     commands:
-      - if [ -n "${APP_RUNNER_SERVICE_ARN}" ]; then aws apprunner start-deployment --service-arn "${APP_RUNNER_SERVICE_ARN}"; else echo "Skipping manual deploy."; fi
+      - if [ "${STATUS}" != "RUNNING" ]; then echo "Service not RUNNING (${STATUS}). Skipping start-deployment."; exit 0; fi
+      - echo "Starting deployment..."
+      - aws apprunner start-deployment --service-arn "${APP_RUNNER_SERVICE_ARN}"
 
 artifacts:
   files:
