@@ -2,21 +2,13 @@ version: 0.2
 
 env:
   variables:
-    APP_RUNNER_SERVICE_ARN: "arn:aws:apprunner:us-east-1:769126752719:service/document-verifier-svc/9c4f9f1ca23645e88553375415ad189b"   # leave empty to skip
     AWS_DEFAULT_REGION: "us-east-1"
 
 phases:
   pre_build:
     commands:
-      - echo "Deploy stage is optional; App Runner auto-deploys prod tag."
-      - if [ -z "${APP_RUNNER_SERVICE_ARN:-}" ]; then echo "APP_RUNNER_SERVICE_ARN not set; skipping."; exit 0; fi
-      - STATUS=$(aws apprunner describe-service --service-arn "${APP_RUNNER_SERVICE_ARN}" --query 'Service.Status' --output text || echo "UNKNOWN")
-      - echo "App Runner service status: ${STATUS}"
-  build:
-    commands:
-      - if [ "${STATUS}" != "RUNNING" ]; then echo "Service not RUNNING (${STATUS}). Skipping start-deployment."; exit 0; fi
-      - echo "Starting deployment..."
-      - aws apprunner start-deployment --service-arn "${APP_RUNNER_SERVICE_ARN}"
+      - 'echo "Deploy stage skipped; App Runner auto-deploys the prod tag."'
+      - 'exit 0'
 
 artifacts:
   files:
