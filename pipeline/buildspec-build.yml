@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    IMAGE_NAME: document-verifier   # used if ECR_REPO_URI isn't provided
+    IMAGE_NAME: document-verifier
 
 phases:
   pre_build:
@@ -12,7 +12,7 @@ phases:
       - REGION=${AWS_DEFAULT_REGION:-${AWS_REGION}}
       - if [ -z "${ECR_REPO_URI}" ]; then export ECR_REPO_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}"; fi
       - aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
-      # Derive a safe 7-char tag without bash substring syntax
+      # POSIX-safe short SHA (fallback to build id if not a commit)
       - COMMIT_SHA=$(printf '%s' "${CODEBUILD_RESOLVED_SOURCE_VERSION}" | grep -Eo '^[0-9a-f]{7}')
       - if [ -z "$COMMIT_SHA" ]; then COMMIT_SHA=$(printf '%s' "${CODEBUILD_RESOLVED_SOURCE_VERSION}" | grep -Eo '^[0-9a-f]{40}' | cut -c1-7); fi
       - if [ -z "$COMMIT_SHA" ]; then COMMIT_SHA=$(printf '%s' "${CODEBUILD_BUILD_ID}" | sed -E 's/.*://; s/[^A-Za-z0-9_.-]//g' | cut -c1-7); fi
@@ -27,9 +27,10 @@ phases:
       - echo "Pushing images..."
       - docker push "${ECR_REPO_URI}:${COMMIT_SHA}"
       - docker push "${ECR_REPO_URI}:prod"
-      - echo "Writing artifact (imageDetail.json) for CodePipeline..."
-      - printf '{"imageUri":"%s"}' "${ECR_REPO_URI}:${COMMIT_SHA}" > imageDetail.json
+      - echo "Writing imageDetail.json for Deploy stage..."
+      - printf '{"repository":"%s","tag":"%s","imageUri":"%s:%s"}' "${ECR_REPO_URI}" "${COMMIT_SHA}" "${ECR_REPO_URI}" "${COMMIT_SHA}" > imageDetail.json
 
 artifacts:
   files:
     - imageDetail.json
+    - pipeline/appspec-deploy.yml

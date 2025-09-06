@@ -2,24 +2,67 @@ version: 0.2
 
 env:
   variables:
-    APP_RUNNER_SERVICE_ARN: "arn:aws:apprunner:us-east-1:769126752719:service/document-verifier-svc/c602caa02fdb48fda1d627de1d860c1f" # Injected by Terraform
-    AWS_DEFAULT_REGION: "us-east-1"     # Injected by Terraform
+    APP_RUNNER_SERVICE_ARN: "arn:aws:apprunner:us-east-1:769126752719:service/document-verifier-svc/c602caa02fdb48fda1d627de1d860c1f"
+    AWS_DEFAULT_REGION: "us-east-1"
+
 phases:
+  install:
+    runtime-versions:
+      python: 3.11
+
   pre_build:
     commands:
       - echo "Preparing deploy"
-      - cat imageDetail.json
-      - REPOSITORY=$(cat imageDetail.json | jq -r .repository)
-      - TAG=$(cat imageDetail.json | jq -r .tag)
+      - |
+        if [ -f imageDetail.json ]; then
+          cat imageDetail.json
+        else
+          echo "imageDetail.json not found"
+          exit 1
+        fi
+      - |
+        REPOSITORY=$(python3 - <<'PY'
+import json
+with open("imageDetail.json") as f:
+    d = json.load(f)
+print(d.get("repository") or d["imageUri"].rsplit(":", 1)[0])
+PY
+        )
+      - |
+        TAG=$(python3 - <<'PY'
+import json
+with open("imageDetail.json") as f:
+    d = json.load(f)
+print(d.get("tag") or d["imageUri"].rsplit(":", 1)[1])
+PY
+        )
       - IMAGE_IDENTIFIER="${REPOSITORY}:${TAG}"
+      - echo "Deploying image ${IMAGE_IDENTIFIER}"
+
   build:
     commands:
-      - echo "Updating App Runner service to image ${IMAGE_IDENTIFIER}"
-      - aws apprunner update-service --service-arn "${APP_RUNNER_SERVICE_ARN}" --source-configuration ImageRepository="{ImageRepositoryType=ECR,ImageIdentifier=${IMAGE_IDENTIFIER},ImageConfiguration={Port=8000,RuntimeEnvironmentVariables=[{Name=LOG_LEVEL,Value=INFO}]}}" --auto-deployments-enabled
+      - |
+        cat > source-config.json <<JSON
+        {
+          "ImageRepository": {
+            "ImageRepositoryType": "ECR",
+            "ImageIdentifier": "${IMAGE_IDENTIFIER}",
+            "ImageConfiguration": {
+              "Port": "8000"
+            }
+          },
+          "AutoDeploymentsEnabled": true
+        }
+        JSON
+      - aws apprunner update-service \
+          --service-arn "${APP_RUNNER_SERVICE_ARN}" \
+          --source-configuration file://source-config.json
+
   post_build:
     commands:
       - echo "Starting deployment"
       - aws apprunner start-deployment --service-arn "${APP_RUNNER_SERVICE_ARN}"
+
 artifacts:
   files:
     - imageDetail.json
